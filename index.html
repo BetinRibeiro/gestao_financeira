@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle Financeiro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0a192f;
+            color: #e6f1ff;
+        }
+        
+        .table-dark {
+            background-color: #172a45;
+        }
+        
+        .table-dark th {
+            background-color: #112240;
+        }
+        
+        .card-dark {
+            background-color: #172a45;
+            border-left: 4px solid #64ffda;
+        }
+        
+        .input-dark {
+            background-color: #112240;
+            border: 1px solid #233554;
+            color: #e6f1ff;
+        }
+        
+        .input-dark:focus {
+            border-color: #64ffda;
+            outline: none;
+        }
+        canvas {
+            max-width: 100%;
+             height: 300px !important; /* Define altura fixa */
+}
+
+    </style>
+</head>
+<body class="min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row justify-between items-center mb-8">
+            <h1 class="text-3xl font-bold text-gradient bg-gradient-to-r from-blue-400 to-teal-400 bg-clip-text text-transparent">
+                Controle Financeiro
+            </h1>
+            <div class="mt-4 md:mt-0 flex space-x-2">
+                <button id="new-transaction" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition duration-200">
+                    + Nova Transação
+                </button>
+                <button id="export-data" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition duration-200">
+                    Exportar Dados
+                </button>
+                <label for="import-input" class="cursor-pointer bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md transition duration-200">
+                    Importar Dados
+                    <input id="import-input" type="file" accept=".txt,.csv" class="hidden">
+                </label>
+            </div>
+        </header>
+        
+        <!-- Dashboard Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="card-dark rounded-lg p-6 shadow-lg flex flex-col">
+                <h3 class="text-sm text-gray-300 mb-1">Entradas do Mês</h3>
+                <p id="income-month" class="text-2xl font-semibold text-green-400">R$ 0,00</p>
+                <!-- <p class="text-xs text-gray-400 mt-2">+10% em relação ao mês anterior</p> -->
+            </div>
+            <div class="card-dark rounded-lg p-6 shadow-lg flex flex-col">
+                <h3 class="text-sm text-gray-300 mb-1">Saídas do Mês</h3>
+                <p id="expense-month" class="text-2xl font-semibold text-red-400">R$ 0,00</p>
+                <!-- <p class="text-xs text-gray-400 mt-2">+5% em relação ao mês anterior</p> -->
+            </div>
+            <div class="card-dark rounded-lg p-6 shadow-lg flex flex-col">
+                <h3 class="text-sm text-gray-300 mb-1">Contas a Pagar</h3>
+                <p id="to-pay" class="text-2xl font-semibold text-yellow-400">R$ 0,00</p>
+                <!-- <p class="text-xs text-gray-400 mt-2">3 contas pendentes</p> -->
+            </div>
+            <div class="card-dark rounded-lg p-6 shadow-lg flex flex-col">
+                <h3 class="text-sm text-gray-300 mb-1">Contas a Receber</h3>
+                <p id="to-receive" class="text-2xl font-semibold text-purple-400">R$ 0,00</p>
+                <!-- <p class="text-xs text-gray-400 mt-2">2 contas pendentes</p> -->
+            </div>
+        </div>
+        
+        <!-- Charts -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div class="card-dark rounded-lg p-6 shadow-lg">
+                <h3 class="text-lg font-semibold mb-4">Fluxo Mensal (Últimos 6 meses)</h3>
+                <canvas id="monthly-flow-chart" width="100%" height="300"></canvas>
+            </div>
+            <div class="card-dark rounded-lg p-6 shadow-lg">
+                <h3 class="text-lg font-semibold mb-4">Distribuição de Despesas</h3>
+                
+                <canvas id="expense-distribution-chart"  width="100%" height="300"></canvas>
+            </div>
+        </div>
+        
+        <!-- Month Navigation -->
+        <div class="flex justify-between items-center mb-6">
+            <button id="prev-month" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition duration-200">
+                &larr; Mês Anterior
+            </button>
+            <h2 id="current-month" class="text-xl font-semibold">Janeiro 2023</h2>
+            <button id="next-month" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition duration-200">
+                Próximo Mês &rarr;
+            </button>
+        </div>
+        
+        <!-- Transactions Table -->
+        <div class="overflow-x-auto rounded-lg table-dark">
+            <table class="min-w-full">
+                <thead>
+                    <tr class="text-left text-gray-300">
+                        <th class="px-6 py-3">Data Venc.</th>
+                        <th class="px-6 py-3">Tipo</th>
+                        <th class="px-6 py-3">Classificação</th>
+                        <th class="px-6 py-3">Descrição</th>
+                        <th class="px-6 py-3 text-right">Valor</th>
+                        <th class="px-6 py-3">Data Liq.</th>
+                        <th class="px-6 py-3">Status</th>
+                        <th class="px-6 py-3">Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="transactions-list" class="divide-y divide-gray-700">
+                    <!-- Transactions will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Transaction Modal -->
+    <div id="transaction-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center hidden z-50">
+        <div class="bg-gray-800 rounded-lg p-6 w-full max-w-2xl">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold" id="modal-title">Nova Transação</h3>
+                <button id="close-modal" class="text-gray-400 hover:text-white">&times;</button>
+            </div>
+            <form id="transaction-form" class="space-y-4">
+                <input type="hidden" id="transaction-id">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="transaction-type" class="block text-sm font-medium mb-1">Tipo</label>
+                        <select id="transaction-type" class="input-dark w-full px-3 py-2 rounded-md">
+                            <option value="ENTRADA">Entrada</option>
+                            <option value="SAIDA">Saída</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="transaction-due-date" class="block text-sm font-medium mb-1">Data de Vencimento</label>
+                        <input type="date" id="transaction-due-date" class="input-dark w-full px-3 py-2 rounded-md">
+                    </div>
+                    <div>
+                        <label for="transaction-category" class="block text-sm font-medium mb-1">Classificação</label>
+                        <select id="transaction-category" class="input-dark w-full px-3 py-2 rounded-md">
+                            <option data-type="ENTRADA" value="Venda à vista">Venda à vista</option>
+                            <option data-type="ENTRADA" value="Recebimento Parcela">Recebimento Parcela</option>
+                            <option data-type="ENTRADA" value="Desmobilização">Desmobilização</option> 
+                            <option data-type="ENTRADA" value="Outros">Outros (Entrada)</option>
+                            <option data-type="SAIDA" value="Despesa Venda" selected>Despesa Venda</option>
+                            <option data-type="SAIDA" value="Despesa Administrativa">Despesa Administrativa</option>
+                            <option data-type="SAIDA" value="Pagamento Mercadoria">Pagamento Mercadoria</option>
+                            <option data-type="SAIDA" value="Despesa Financeira">Despesa Financeira</option>
+                            <option data-type="SAIDA" value="Despesa Pessoal">Despesa Pessoal</option>
+                            <option data-type="SAIDA" value="Outros">Outros (Saída)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="transaction-value" class="block text-sm font-medium mb-1">Valor (R$)</label>
+                        <input type="number" step="0.01" id="transaction-value" class="input-dark w-full px-3 py-2 rounded-md" placeholder="0,00">
+                    </div>
+                </div>
+                <div>
+                    <label for="transaction-description" class="block text-sm font-medium mb-1">Descrição</label>
+                    <textarea id="transaction-description" class="input-dark w-full px-3 py-2 rounded-md" rows="2"></textarea>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="transaction-settlement-date" class="block text-sm font-medium mb-1">Data de Liquidação</label>
+                        <input type="date" id="transaction-settlement-date" class="input-dark w-full px-3 py-2 rounded-md">
+                    </div>
+                    <div class="flex items-center">
+                        <input type="checkbox" id="transaction-settled" class="h-5 w-5">
+                        <label for="transaction-settled" class="ml-2 text-sm font-medium">Liquidado</label>
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-3 pt-4">
+                    <button type="button" id="cancel-transaction" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-md transition duration-200">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-md transition duration-200">
+                        Salvar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Database setup
+            const dbName = 'FinanceDB';
+            const dbVersion = 1;
+            const storeName = 'registro_financeiro';
+            
+            let db;
+            let currentMonth = new Date().getMonth();
+            let currentYear = new Date().getFullYear();
+            let monthlyFlowChart;
+            let expenseDistributionChart;
+            
+            // Initialize the application
+            initDB().then(() => {
+                updateUI();
+                
+                // Event listeners
+                document.getElementById('new-transaction').addEventListener('click', () => showTransactionModal('new'));
+                document.getElementById('close-modal').addEventListener('click', hideTransactionModal);
+                document.getElementById('cancel-transaction').addEventListener('click', hideTransactionModal);
+                document.getElementById('transaction-form').addEventListener('submit', saveTransaction);
+                document.getElementById('prev-month').addEventListener('click', () => navigateMonth(-1));
+                document.getElementById('next-month').addEventListener('click', () => navigateMonth(1));
+            }).catch(error => {
+                console.error('Failed to initialize database:', error);
+            });
+            
+            // Initialize modal date fields with current date
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('transaction-due-date').value = today;
+            document.getElementById('transaction-settlement-date').value = today;
+
+            // Filter categories based on transaction type
+            document.getElementById('transaction-type').addEventListener('change', function() {
+                const type = this.value;
+                const categorySelect = document.getElementById('transaction-category');
+                const selectedValue = categorySelect.value;
+                
+                // Enable all options first
+                Array.from(categorySelect.options).forEach(option => {
+                    option.style.display = 'block';
+                });
+
+                // Hide options that don't match the current type
+                if (type === 'ENTRADA') {
+                    Array.from(categorySelect.options).forEach(option => {
+                        if (option.dataset.type === 'SAIDA') {
+                            option.style.display = 'none';
+                        }
+                    });
+                    // Set first available option as selected if current selection is hidden
+                    if (!categorySelect.querySelector('option[data-type="ENTRADA"][value="'+selectedValue+'"]')) {
+                        categorySelect.value = 'Venda à vista';
+                    }
+                } else {
+                    Array.from(categorySelect.options).forEach(option => {
+                        if (option.dataset.type === 'ENTRADA') {
+                            option.style.display = 'none';
+                        }
+                    });
+                    // Set first available option as selected if current selection is hidden
+                    if (!categorySelect.querySelector('option[data-type="SAIDA"][value="'+selectedValue+'"]')) {
+                        categorySelect.value = 'Despesa Venda';
+                    }
+                }
+            });
+
+            // Trigger change event to set initial state
+            document.getElementById('transaction-type').dispatchEvent(new Event('change'));
+            
+            // Initialize IndexedDB
+            function initDB() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open(dbName, dbVersion);
+                    
+                    request.onupgradeneeded = (event) => {
+                        const db = event.target.result;
+                        if (!db.objectStoreNames.contains(storeName)) {
+                            const store = db.createObjectStore(storeName, { keyPath: 'id' });
+                            store.createIndex('due_date', 'due_date', { unique: false });
+                            store.createIndex('type', 'type', { unique: false });
+                            store.createIndex('settled', 'settled', { unique: false });
+                        }
+                    };
+                    
+                    request.onsuccess = (event) => {
+                        db = event.target.result;
+                        // Verify object store exists
+                        if (!db.objectStoreNames.contains(storeName)) {
+                            db.close();
+                            const deleteRequest = indexedDB.deleteDatabase(dbName);
+                            deleteRequest.onsuccess = () => {
+                                initDB().then(resolve).catch(reject);
+                            };
+                            return;
+                        }
+                        resolve();
+                    };
+                    
+                    request.onerror = (event) => {
+                        console.error('Error opening database', event.target.error);
+                        reject(event.target.error);
+                    };
+                });
+            }            
+            // Show transaction modal
+            function showTransactionModal(event) {
+                const modal = document.getElementById('transaction-modal');
+                const form = document.getElementById('transaction-form');
+                const title = document.getElementById('modal-title');
+                
+                let transactionId = null;
+                
+                if (event instanceof Event && event.target.classList.contains('edit-btn')) {
+                    transactionId = event.target.getAttribute('data-id');
+                } else if (typeof event === 'string') {
+                    transactionId = event;
+                }
+                
+                if (transactionId && isValidId(transactionId)) {
+                    // Edit mode
+                    title.textContent = 'Editar Transação';
+                    getTransaction(transactionId).then(transaction => {
+                        document.getElementById('transaction-id').value = transaction.id;
+                        document.getElementById('transaction-type').value = transaction.type;
+                        document.getElementById('transaction-due-date').value = transaction.due_date;
+                        document.getElementById('transaction-category').value = transaction.category;
+                        document.getElementById('transaction-description').value = transaction.description;
+                        document.getElementById('transaction-value').value = transaction.value.toFixed(2);
+                        document.getElementById('transaction-settlement-date').value = transaction.settlement_date || '';
+                        document.getElementById('transaction-settled').checked = transaction.settled;
+                    });
+                } else {
+                    // Add mode
+                    title.textContent = 'Nova Transação';
+                    form.reset();
+                    document.getElementById('transaction-due-date').value = today;
+                    document.getElementById('transaction-settlement-date').value = today;
+                    document.getElementById('transaction-settled').checked = false;
+                }
+                
+                modal.classList.remove('hidden');
+            }
+            
+            // Hide transaction modal
+            function hideTransactionModal() {
+                document.getElementById('transaction-modal').classList.add('hidden');
+            }
+            
+            // Save transaction to IndexedDB
+            function saveTransaction(event) {
+                event.preventDefault();
+                
+                const id = document.getElementById('transaction-id').value || self.crypto.randomUUID();
+                const type = document.getElementById('transaction-type').value;
+                const due_date = document.getElementById('transaction-due-date').value;
+                const category = document.getElementById('transaction-category').value;
+                const description = document.getElementById('transaction-description').value;
+                const value = parseFloat(document.getElementById('transaction-value').value || 0);
+                let settlement_date = document.getElementById('transaction-settlement-date').value;
+                const settled = document.getElementById('transaction-settled').checked;
+
+                // Validate settlement data
+                if (!settled) {
+                    settlement_date = null;
+                } else if (!settlement_date) {
+                    settlement_date = new Date().toISOString().split('T')[0];
+                }
+                
+                const transaction = {
+                    id,
+                    type,
+                    due_date,
+                    category,
+                    description,
+                    value,
+                    settlement_date,
+                    settled,
+                    created_at: new Date().toISOString()
+                };
+                
+                const transactionStore = db.transaction(storeName, 'readwrite').objectStore(storeName);
+                const request = transactionStore.put(transaction);
+                
+                request.onsuccess = () => {
+                    hideTransactionModal();
+                    updateUI();
+                };
+                
+                request.onerror = (event) => {
+                    console.error('Error saving transaction', event.target.error);
+                };
+            }
+            
+            // Get a single transaction
+            function getTransaction(id) {
+                return new Promise((resolve, reject) => {
+                    const transactionStore = db.transaction(storeName, 'readonly').objectStore(storeName);
+                    const request = transactionStore.get(id);
+                    
+                    request.onsuccess = () => {
+                        resolve(request.result);
+                    };
+                    
+                    request.onerror = (event) => {
+                        reject(event.target.error);
+                    };
+                });
+            }
+            
+            // Get all transactions for the current month/year
+            function getTransactions() {
+                return new Promise((resolve, reject) => {
+                    const startDate = new Date(currentYear, currentMonth, 1).toISOString().split('T')[0];
+                    const endDate = new Date(currentYear, currentMonth + 1, 0).toISOString().split('T')[0];
+                    
+                    const transactionStore = db.transaction(storeName, 'readonly').objectStore(storeName);
+                    const index = transactionStore.index('due_date');
+                    const range = IDBKeyRange.bound(startDate, endDate);
+                    const request = index.getAll(range);
+                    
+                    request.onsuccess = () => {
+                        resolve(request.result);
+                    };
+                    
+                    request.onerror = (event) => {
+                        reject(event.target.error);
+                    };
+                });
+            }
+            
+            // Get all transactions ever
+            function getAllTransactions() {
+                return new Promise((resolve, reject) => {
+                    const transactionStore = db.transaction(storeName, 'readonly').objectStore(storeName);
+                    const request = transactionStore.getAll();
+                    
+                    request.onsuccess = () => {
+                        resolve(request.result);
+                    };
+                    
+                    request.onerror = (event) => {
+                        reject(event.target.error);
+                    };
+                });
+            }
+            
+            // Delete a transaction
+            function deleteTransaction(id) {
+                const transactionStore = db.transaction(storeName, 'readwrite').objectStore(storeName);
+                const request = transactionStore.delete(id);
+                
+                request.onsuccess = () => {
+                    updateUI();
+                };
+                
+                request.onerror = (event) => {
+                    console.error('Error deleting transaction', event.target.error);
+                };
+            }
+            
+            // Update the UI with current month's data
+            async function updateUI() {
+                // Update month/year display
+                const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+                document.getElementById('current-month').textContent = `${monthNames[currentMonth]} ${currentYear}`;
+                
+                // Get transactions for current month
+                const transactions = await getTransactions();
+                
+                // Render transactions table
+                renderTransactionsTable(transactions);
+                
+                // Update dashboard cards
+                updateDashboardCards(transactions);
+                
+                // Update charts
+                updateCharts();
+            }
+            
+            // Render transactions table
+            function renderTransactionsTable(transactions) {
+                const tableBody = document.getElementById('transactions-list');
+                tableBody.innerHTML = '';
+                
+                if (transactions.length === 0) {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td colspan="8" class="px-6 py-4 text-center text-gray-400">Nenhuma transação encontrada para este mês</td>
+                    `;
+                    tableBody.appendChild(tr);
+                    return;
+                }
+                
+                transactions.sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
+                
+                transactions.forEach(transaction => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-gray-800 transition duration-150';
+                    
+                    const formattedValue = transaction.value.toLocaleString('pt-BR', {
+                        style: 'currency',
+                        currency: 'BRL'
+                    });
+                    
+                    const valueClass = transaction.type === 'ENTRADA' ? 'text-green-400' : 'text-red-400';
+                    const statusText = transaction.settled ? 'Liquidado' : 'Pendente';
+                    const statusClass = transaction.settled ? 'bg-green-600' : 'bg-yellow-600';
+                    
+                    tr.innerHTML = `
+                        <td class="px-6 py-4">${formatDate(transaction.due_date)}</td>
+                        <td class="px-6 py-4">
+                            <span class="inline-block px-2 py-1 rounded-full ${transaction.type === 'ENTRADA' ? 'bg-green-900 text-green-300' : 'bg-red-900 text-red-300'}">
+                                ${transaction.type === 'ENTRADA' ? 'Entrada' : 'Saída'}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4">${transaction.category}</td>
+                        <td class="px-6 py-4">${transaction.description}</td>
+                        <td class="px-6 py-4 text-right ${valueClass}">${formattedValue}</td>
+                        <td class="px-6 py-4">${transaction.settlement_date ? formatDate(transaction.settlement_date) : '-'}</td>
+                        <td class="px-6 py-4">
+                            <span class="inline-block px-2 py-1 rounded-full text-xs ${statusClass}">
+                                ${statusText}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="flex space-x-2">
+                                <button class="edit-btn text-blue-400 hover:text-blue-300" data-id="${transaction.id}">
+                                    Editar
+                                </button>
+                                <button class="delete-btn text-red-400 hover:text-red-300" data-id="${transaction.id}">
+                                    Excluir
+                                </button>
+                            </div>
+                        </td>
+                    `;
+                    
+                    tableBody.appendChild(tr);
+                });
+                
+                // Add event listeners to edit and delete buttons
+                document.querySelectorAll('.edit-btn').forEach(btn => {
+                    btn.addEventListener('click', showTransactionModal);
+                });
+                
+                document.querySelectorAll('.delete-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const id = e.target.getAttribute('data-id');
+                        if (confirm('Tem certeza que deseja excluir esta transação?')) {
+                            deleteTransaction(id);
+                        }
+                    });
+                });
+            }
+            
+            // Update dashboard cards with current month's data
+            async function updateDashboardCards(transactions) {
+                // Calculate totals
+                const income = transactions
+                    .filter(t => t.type === 'ENTRADA' && t.settled)
+                    .reduce((sum, t) => sum + t.value, 0);
+                
+                const expense = transactions
+                    .filter(t => t.type === 'SAIDA' && t.settled)
+                    .reduce((sum, t) => sum + t.value, 0);
+                
+                const toPay = transactions
+                    .filter(t => t.type === 'SAIDA' && !t.settled)
+                    .reduce((sum, t) => sum + t.value, 0);
+                
+                const toReceive = transactions
+                    .filter(t => t.type === 'ENTRADA' && !t.settled)
+                    .reduce((sum, t) => sum + t.value, 0);
+                
+                // Update card values
+                document.getElementById('income-month').textContent = formatCurrency(income);
+                document.getElementById('expense-month').textContent = formatCurrency(expense);
+                document.getElementById('to-pay').textContent = formatCurrency(toPay);
+                document.getElementById('to-receive').textContent = formatCurrency(toReceive);
+            }
+            
+            // Update charts
+            async function updateCharts() {
+                const allTransactions = await getAllTransactions();
+                
+                // Monthly Flow Chart
+                updateMonthlyFlowChart(allTransactions);
+                
+                // Expense Distribution Chart
+                updateExpenseDistributionChart(allTransactions);
+            }
+            
+            // Update monthly flow chart
+            function updateMonthlyFlowChart(transactions) {
+                // Get last 6 months data
+                const months = [];
+                const incomeData = [];
+                const expenseData = [];
+                
+                for (let i = 5; i >= 0; i--) {
+                    const date = new Date(currentYear, currentMonth - i, 1);
+                    const monthYear = `${date.toLocaleString('pt-BR', { month: 'short' })} ${date.getFullYear()}`;
+                    months.push(monthYear);
+                    
+                    const startDate = new Date(date.getFullYear(), date.getMonth(), 1).toISOString().split('T')[0];
+                    const endDate = new Date(date.getFullYear(), date.getMonth() + 1, 0).toISOString().split('T')[0];
+                    
+                    const monthTransactions = transactions.filter(t => {
+                        const transactionDate = t.settlement_date || t.due_date;
+                        return transactionDate >= startDate && transactionDate <= endDate;
+                    });
+                    
+                    const income = monthTransactions
+                        .filter(t => t.type === 'ENTRADA')
+                        .reduce((sum, t) => sum + t.value, 0);
+                    
+                    const expense = monthTransactions
+                        .filter(t => t.type === 'SAIDA')
+                        .reduce((sum, t) => sum + t.value, 0);
+                    
+                    incomeData.push(income);
+                    expenseData.push(expense);
+                }
+                
+                const ctx = document.getElementById('monthly-flow-chart').getContext('2d');
+                
+                if (monthlyFlowChart) {
+                    monthlyFlowChart.destroy();
+                }
+                
+                monthlyFlowChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: months,
+                        datasets: [
+                            {
+                                label: 'Entradas',
+                                data: incomeData,
+                                backgroundColor: 'rgba(52, 211, 153, 0.8)',
+                                borderRadius: 4
+                            },
+                            {
+                                label: 'Saídas',
+                                data: expenseData,
+                                backgroundColor: 'rgba(248, 113, 113, 0.8)',
+                                borderRadius: 4
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                labels: {
+                                    color: '#e2e8f0'
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                grid: {
+                                    color: 'rgba(255, 255, 255, 0.1)'
+                                },
+                                ticks: {
+                                    color: '#e2e8fo'
+                                }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                grid: {
+                                    color: 'rgba(255, 255, 255, 0.1)'
+                                },
+                                ticks: {
+                                    color: '#e2e8f0',
+                                    callback: function(value) {
+                                        return formatCurrency(value);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Update expense distribution chart
+            function updateExpenseDistributionChart(transactions) {
+                // Filter expenses from current month
+                const startDate = new Date(currentYear, currentMonth, 1).toISOString().split('T')[0];
+                const endDate = new Date(currentYear, currentMonth + 1, 0).toISOString().split('T')[0];
+                
+                const currentMonthExpenses = transactions.filter(t => {
+                    const transactionDate = t.settlement_date || t.due_date;
+                    return t.type === 'SAIDA' && 
+                           transactionDate >= startDate && 
+                           transactionDate <= endDate;
+                });
+                
+                // Group by category
+                const categories = {};
+                currentMonthExpenses.forEach(t => {
+                    categories[t.category] = (categories[t.category] || 0) + t.value;
+                });
+                
+                const categoryLabels = Object.keys(categories);
+                const categoryData = Object.values(categories);
+                
+                // Generate colors for each category
+                const backgroundColors = categoryLabels.map((_, i) => {
+                    const hue = (i * 137.508) % 360; // Golden angle approximation
+                    return `hsl(${hue}, 70%, 60%)`;
+                });
+                
+                const ctx = document.getElementById('expense-distribution-chart').getContext('2d');
+                
+                if (expenseDistributionChart) {
+                    expenseDistributionChart.destroy();
+                }
+                
+                expenseDistributionChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: categoryLabels,
+                        datasets: [{
+                            data: categoryData,
+                            backgroundColor: backgroundColors,
+                            borderColor: '#172a45',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                                labels: {
+                                    color: '#e2e8f0'
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.label || '';
+                                        const value = context.raw || 0;
+                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                        const percentage = Math.round((value / total) * 100);
+                                        return `${label}: ${formatCurrency(value)} (${percentage}%)`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Navigate between months
+            function navigateMonth(direction) {
+                currentMonth += direction;
+                
+                if (currentMonth > 11) {
+                    currentMonth = 0;
+                    currentYear++;
+                } else if (currentMonth < 0) {
+                    currentMonth = 11;
+                    currentYear--;
+                }
+                
+                updateUI();
+            }
+            
+            // Helper function to validate ID
+            function isValidId(id) {
+                return typeof id === 'string' && id.length > 0 && id !== 'undefined';
+            }
+            
+            // Helper function to format date
+            function formatDate(dateString) {
+                if (!dateString) return '';
+                const date = new Date(dateString);
+                return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            }
+            
+            // Helper function to format currency
+            function formatCurrency(value) {
+                return value.toLocaleString('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL'
+                });
+            }
+
+            // Export data as CSV
+            document.getElementById('export-data').addEventListener('click', async () => {
+                const transactions = await getAllTransactions();
+                // Ensure each transaction has a unique ID
+                transactions.forEach(t => {
+                    if (!t.id) t.id = self.crypto.randomUUID();
+                });
+                const csvContent = convertToCSV(transactions);
+                downloadCSV(csvContent, `transacoes_${currentYear}_${currentMonth + 1}.txt`);
+            });
+
+            // Import data from CSV
+            document.getElementById('import-input').addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const content = await readFileAsText(file);
+                const newTransactions = parseCSV(content);
+                const existingTransactions = await getAllTransactions();
+                const existingIds = new Set(existingTransactions.map(t => t.id));
+
+                // Filter out duplicates and ensure all have IDs
+                const uniqueTransactions = newTransactions
+                    .filter(t => !existingIds.has(t.id))
+                    .map(t => {
+                        if (!t.id) t.id = self.crypto.randomUUID();
+                        return t;
+                    });
+
+                if (uniqueTransactions.length === 0) {
+                    alert('Nenhuma transação nova para importar.');
+                    return;
+                }
+
+                if (confirm(`Deseja importar ${uniqueTransactions.length} novas transações?`)) {
+                    const transactionStore = db.transaction(storeName, 'readwrite').objectStore(storeName);
+                    uniqueTransactions.forEach(transaction => {
+                        transactionStore.put(transaction);
+                    });
+                    
+                    updateUI();
+                }
+            });
+
+            // Helper function to convert transactions to CSV
+            function convertToCSV(transactions) {
+                const headers = ['id', 'type', 'due_date', 'category', 'description', 'value', 'settlement_date', 'settled', 'created_at'];
+                let csv = headers.join(',') + '\n';
+                
+                transactions.forEach(t => {
+                    const row = headers.map(h => `"${t[h] || ''}"`).join(',');
+                    csv += row + '\n';
+                });
+                
+                return csv;
+            }
+
+            // Helper function to download CSV file
+            function downloadCSV(content, filename) {
+                const blob = new Blob([content], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }
+
+            // Helper function to read file as text
+            function readFileAsText(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = e => resolve(e.target.result);
+                    reader.onerror = e => reject(e);
+                    reader.readAsText(file);
+                });
+            }
+
+            // Helper function to parse CSV
+            function parseCSV(content) {
+                const lines = content.split('\n').filter(line => line.trim() !== '');
+                if (lines.length < 2) return [];
+                
+                const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
+                const transactions = [];
+                
+                for (let i = 1; i < lines.length; i++) {
+                    const values = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/)
+                        .map(v => v.replace(/^"|"$/g, '').trim());
+                    
+                    if (values.length !== headers.length) continue;
+                    
+                    const transaction = {};
+                    headers.forEach((h, j) => {
+                        transaction[h] = values[j] === '' ? null : values[j];
+                    });
+                    
+                    // Convert numeric fields
+                    if (transaction.value) transaction.value = parseFloat(transaction.value);
+                    if (transaction.settled) transaction.settled = transaction.settled === 'true';
+                    
+                    transactions.push(transaction);
+                }
+                
+                return transactions;
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+   <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Dashboard Empresarial - Indicadores Financeiros</title>
+      <script src="https://cdn.tailwindcss.com"></script>
+      <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+      <script src="https://kit.fontawesome.com/f6adf96490.js" crossorigin="anonymous"></script>
+      <style>
+         .gradient-bg {
+         background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+         }
+         .card-hover:hover {
+         transform: translateY(-5px);
+         box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+         }
+         .card {
+         transition: all 0.3s ease;
+         }
+         .fade-in {
+         animation: fadeIn 0.5s ease-in;
+         }
+         @keyframes fadeIn {
+         from { opacity: 0; transform: translateY(20px); }
+         to { opacity: 1; transform: translateY(0); }
+         }
+      </style>
+   </head>
+   <body class="min-h-screen gradient-bg text-gray-100 font-sans">
+      <div class="container mx-auto px-4 py-8">
+         <!-- Header -->    
+         <header class="flex flex-col md:flex-row justify-between items-center mb-8">
+            <a href="dashboard.html" class="block hover:bg-blue-800 p-4 rounded transition duration-200">
+               <div>
+                  <h1 class="text-3xl font-bold">Controle Mensal</h1>
+                  <p class="text-blue-200">Gestão de entradas e saídas por período</p>
+               </div>
+            </a>
+            <div class="mt-4 md:mt-0 flex items-center space-x-2">
+               <button id="prevMonth" class="px-3 py-2 bg-white/20 text-white rounded hover:bg-white/30">
+                  <i class="fas fa-chevron-left"></i>
+               </button>
+               <span id="currentMonth" class="px-4 py-2 bg-white text-blue-600 rounded font-semibold">Mês/Ano</span>
+               <button id="nextMonth" class="px-3 py-2 bg-white/20 text-white rounded hover:bg-white/30">
+                  <i class="fas fa-chevron-right"></i>
+               </button>
+               <select id="filterType" class="ml-4 px-3 py-2 bg-white/10 border border-white/20 rounded text-white">
+                  <option value="todos">Todos</option>
+                  <option value="entrada">Entradas</option>
+                  <option value="saida">Saídas</option>
+               </select>
+               <button id="openModal" class="px-6 py-2 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition">
+                  <i class="fas fa-plus mr-2"></i>Novo
+               </button>
+            </div>
+         </header>
+         <!-- Summary Cards -->
+         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+               <h3 class="text-lg font-semibold mb-2">Total Entradas</h3>
+               <p id="totalEntradas" class="text-2xl font-bold text-green-400">R$ 0,00</p>
+            </div>
+            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+               <h3 class="text-lg font-semibold mb-2">Total Saídas</h3>
+               <p id="totalSaidas" class="text-2xl font-bold text-red-400">R$ 0,00</p>
+            </div>
+            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+               <h3 class="text-lg font-semibold mb-2">Saldo do Mês</h3>
+               <p id="saldoMes" class="text-2xl font-bold">R$ 0,00</p>
+            </div>
+         </div>
+
+         <!-- Results Section -->
+         <div class="lg:overflow-x-auto">
+            <table class="w-full bg-white/10 backdrop-blur-sm rounded-xl overflow-hidden hidden md:table">
+               <thead class="border-b border-white/20">
+                  <tr>
+                     <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Data</th>
+                     <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Tipo</th>
+                     <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Categoria</th>
+                     <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Descrição</th>
+                     <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Valor</th>
+                     <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Status</th>
+                     <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider">Ações</th>
+                  </tr>
+               </thead>
+               <tbody id="financialRecordsTable" class="divide-y divide-white/10">
+                  <!-- Records will be populated by JS -->
+               </tbody>
+            </table>
+            <!-- Mobile Version -->
+            <div id="financialRecordsMobile" class="md:hidden space-y-4">
+               <!-- Records will be populated by JS -->
+            </div>
+         </div>
+         <!-- Add New Modal (hidden by default) -->
+         <div id="modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden overflow-y-auto px-4">
+            <div class="bg-white rounded-lg w-full max-w-2xl text-gray-800 flex flex-col shadow-xl" style="max-height: 90vh;">
+               <div class="px-6 py-4 border-b flex justify-between items-center">
+                  <h3 class="text-lg font-semibold">Adicionar Registro Financeiro</h3>
+                  <button id="closeModal" class="text-gray-500 hover:text-gray-700" aria-label="Fechar modal">
+                  <i class="fas fa-times"></i>
+                  </button>
+               </div>
+               <div class="p-6 overflow-y-auto flex-grow" style="margin-bottom: 4rem;">
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                     <div>
+                        <label class="block text-sm font-medium mb-1">Tipo</label>
+                        <select id="input-tipo" class="w-full border rounded-md px-3 py-2">
+                           <option value="entrada">Entrada</option>
+                           <option value="saida">Saída</option>
+                        </select>
+                     </div>
+                     <div>
+                        <label class="block text-sm font-medium mb-1">Categoria</label>
+                        <select id="input-categoria" class="w-full border rounded-md px-3 py-2">
+                           <option value="venda_a_prazo">Venda a prazo</option>
+                           <option value="venda_a_vista">Venda a vista</option>
+                           <option value="outro_entrada">Outra entrada</option>
+                           <option value="pagamento_mercadoria">Pagamento Mercadoria</option>
+                           <option value="despesa_pessoal">Despesa Pessoal</option>
+                           <option value="despesa_marketing">Despesa Marketing</option>
+                           <option value="despesa_operacional">Despesa Operacional</option>
+                           <option value="imposto">Imposto</option>
+                           <option value="outro_saida">Outra saída</option>
+                        </select>
+                     </div>
+                     <div>
+                        <label class="block text-sm font-medium mb-1">Valor</label>
+                        <input id="input-valor" type="text" class="w-full border rounded-md px-3 py-2" placeholder="R$ 0,00">
+                     </div>
+                     <div>
+                        <label class="block text-sm font-medium mb-1">Forma de Pagamento</label>
+                        <select id="input-forma" class="w-full border rounded-md px-3 py-2">
+                           <option value="dinheiro">Dinheiro</option>
+                           <option value="cartao_credito">Cartão de Crédito</option>
+                           <option value="cartao_debito">Cartão de Débito</option>
+                           <option value="boleto">Boleto</option>
+                           <option value="pix">PIX</option>
+                           <option value="transferencia_bancaria">Transferência Bancária</option>
+                           <option value="cheque">Cheque</option>
+                           <option value="outro">Outro</option>
+                        </select>
+                     </div>
+                     <div class="md:col-span-2">
+                        <label class="block text-sm font-medium mb-1">Descrição</label>
+                        <input id="input-descricao" type="text" class="w-full border rounded-md px-3 py-2">
+                     </div>
+                     <div>
+                        <label class="block text-sm font-medium mb-1">Data de Vencimento</label>
+                        <input id="input-vencimento" type="date" class="w-full border rounded-md px-3 py-2">
+                     </div>
+                     <div>
+                        <label class="block text-sm font-medium mb-1">Data de Liquidação</label>
+                        <input id="input-liquidacao" type="date" class="w-full border rounded-md px-3 py-2">
+                     </div>
+                     <div>
+                        <label class="block text-sm font-medium mb-1">Status</label>
+                        <select id="input-status" class="w-full border rounded-md px-3 py-2">
+                           <option value="vencida">Vencida</option>
+                           <option value="agendada" selected>Agendada</option>
+                           <option value="liquidada">Liquidada</option>
+                           <option value="cancelada">Cancelada</option>
+                        </select>
+                     </div>
+                     <div class="md:col-span-2">
+                        <label class="block text-sm font-medium mb-1">Observações</label>
+                        <textarea id="input-observacoes" class="w-full border rounded-md px-3 py-2" rows="3"></textarea>
+                     </div>
+                  </div>
+               </div>
+               <div class="px-6 py-4 border-t flex justify-end space-x-3 bg-white fixed bottom-0 w-full max-w-2xl rounded-b-lg">
+                  <button id="cancelModal" class="px-4 py-2 border rounded-md text-gray-700 hover:bg-gray-100">Cancelar</button>
+                  <button id="saveNewRecord" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                  Salvar
+                  </button>
+               </div>
+            </div>
+         </div>
+         <!-- Edit Modal (hidden by default) -->
+         <div id="editModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden overflow-y-auto px-4">
+            <div class="bg-white rounded-lg w-full max-w-2xl text-gray-800 flex flex-col shadow-xl" style="max-height: 90vh;">
+               <div class="px-6 py-4 border-b flex justify-between items-center bg-yellow-100">
+                  <h3 class="text-lg font-semibold text-yellow-800">Editar Registro Financeiro</h3>
+                  <button id="closeEditModal" class="text-yellow-800 hover:text-yellow-700" aria-label="Fechar modal">
+                  <i class="fas fa-times"></i>
+                  </button>
+               </div>
+               <div class="p-6 overflow-y-auto flex-grow" style="margin-bottom: 4rem;">
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                     <div>
+                        <label class="block text-sm font-medium mb-1">Tipo</label>
+                        <select id="edit-tipo" class="w-full border rounded-md px-3 py-2">
+                           <option value="entrada">Entrada</option>
+                           <option value="saida">Saída</option>
+                        </select>
+                     </div>
+                     <div>
+                        <label class="block text-sm font-medium mb-1">Categoria</label>
+                        <select id="edit-categoria" class="w-full border rounded-md px-3 py-2">
+                           <option value="venda_a_prazo">Venda a prazo</option>
+                           <option value="venda_a_vista">Venda a vista</option>
+                           <option value="outro_entrada">Outra entrada</option>
+                           <option value="pagamento_mercadoria">Pagamento Mercadoria</option>
+                           <option value="despesa_pessoal">Despesa Pessoal</option>
+                           <option value="despesa_marketing">Despesa Marketing</option>
+                           <option value="despesa_operacional">Despesa Operacional</option>
+                           <option value="imposto">Imposto</option>
+                           <option value="outro_saida">Outra saída</option>
+                        </select>
+                     </div>
+                     <div>
+                        <label class="block text-sm font-medium mb-1">Valor</label>
+                        <input id="edit-valor" type="text" class="w-full border rounded-md px-3 py-2" placeholder="R$ 0,00">
+                     </div>
+                     <div>
+                        <label class="block text-sm font-medium mb-1">Forma de Pagamento</label>
+                        <select id="edit-forma" class="w-full border rounded-md px-3 py-2">
+                           <option value="dinheiro">Dinheiro</option>
+                           <option value="cartao_credito">Cartão de Crédito</option>
+                           <option value="cartao_debito">Cartão de Débito</option>
+                           <option value="boleto">Boleto</option>
+                           <option value="pix">PIX</option>
+                           <option value="transferencia_bancaria">Transferência Bancária</option>
+                           <option value="cheque">Cheque</option>
+                           <option value="outro">Outro</option>
+                        </select>
+                     </div>
+                     <div class="md:col-span-2">
+                        <label class="block text-sm font-medium mb-1">Descrição</label>
+                        <input id="edit-descricao" type="text" class="w-full border rounded-md px-3 py-2">
+                     </div>
+                     <div>
+                        <label class="block text-sm font-medium mb-1">Data de Vencimento</label>
+                        <input id="edit-vencimento" type="date" class="w-full border rounded-md px-3 py-2">
+                     </div>
+                     <div>
+                        <label class="block text-sm font-medium mb-1">Data de Liquidação</label>
+                        <input id="edit-liquidacao" type="date" class="w-full border rounded-md px-3 py-2">
+                     </div>
+                     <div>
+                        <label class="block text-sm font-medium mb-1">Status</label>
+                        <select id="edit-status" class="w-full border rounded-md px-3 py-2">
+                           <option value="vencida">Vencida</option>
+                           <option value="agendada">Agendada</option>
+                           <option value="liquidada">Liquidada</option>
+                           <option value="cancelada">Cancelada</option>
+                        </select>
+                     </div>
+                     <div class="md:col-span-2">
+                        <label class="block text-sm font-medium mb-1">Observações</label>
+                        <textarea id="edit-observacoes" class="w-full border rounded-md px-3 py-2" rows="3"></textarea>
+                     </div>
+                  </div>
+               </div>
+               <div class="px-6 py-4 border-t flex justify-end space-x-3 bg-white fixed bottom-0 w-full max-w-2xl rounded-b-lg">
+                  <button id="cancelEditModal" class="px-4 py-2 border rounded-md text-gray-700 hover:bg-gray-100">Cancelar</button>
+                  <button id="saveEditRecord" class="px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600">Salvar Alterações</button>
+               </div>
+            </div>
+         </div>
+         
+         <script>
+
+// 🔹 UTILITÁRIOS GERAIS
+function generateUUID() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
+
+function formatCurrency(value) {
+    return value.toLocaleString('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+    });
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    if (isNaN(d)) return '';
+    return d.toLocaleDateString('pt-BR');
+}
+
+// 🔹 MAPAS DE VALORES LEGÍVEIS
+const categoriaMap = {
+    venda_a_prazo: "Venda a Prazo",
+    venda_a_vista: "Venda a Vista",
+    outro_entrada: "Outra Entrada",
+    pagamento_mercadoria: "Pagamento Mercadoria",
+    despesa_pessoal: "Despesa Pessoal",
+    despesa_marketing: "Despesa Marketing",
+    despesa_operacional: "Despesa Operacional",
+    imposto: "Imposto",
+    outro_saida: "Outra Saída"
+};
+
+const formaPagamentoMap = {
+    dinheiro: "Dinheiro",
+    cartao_credito: "Cartão de Crédito",
+    cartao_debito: "Cartão de Débito",
+    boleto: "Boleto",
+    pix: "PIX",
+    transferencia_bancaria: "Transferência Bancária",
+    cheque: "Cheque",
+    outro: "Outro"
+};
+
+// 🔹 BANCO DE DADOS - IndexedDB
+let db;
+
+function initDB() {
+    const request = indexedDB.open("financeDB", 1);
+
+    request.onupgradeneeded = function(event) {
+        db = event.target.result;
+        const store = db.createObjectStore("records", { keyPath: "id" });
+        store.createIndex("createdAt", "createdAt", { unique: false });
+        store.createIndex("updatedAt", "updatedAt", { unique: false });
+    };
+
+    request.onsuccess = function(event) {
+        db = event.target.result;
+        loadFinancialRecords(); // Carrega automaticamente ao abrir a página
+    };
+
+    request.onerror = function(event) {
+        alert("Erro ao abrir o banco de dados: " + event.target.errorCode);
+    };
+}
+
+// 🔹 SALVAR NOVO REGISTRO
+function handleSaveNew() {
+    try {
+        const campos = [
+            { id: 'input-tipo', nome: 'Tipo' },
+            { id: 'input-categoria', nome: 'Categoria' },
+            { id: 'input-valor', nome: 'Valor' },
+            { id: 'input-forma', nome: 'Forma de Pagamento' },
+            { id: 'input-descricao', nome: 'Descrição' },
+            { id: 'input-vencimento', nome: 'Data de Vencimento' },
+            { id: 'input-liquidacao', nome: 'Data de Liquidação' },
+            { id: 'input-status', nome: 'Status' },
+            { id: 'input-observacoes', nome: 'Observações' }
+        ];
+
+        const valores = {};
+        for (const campo of campos) {
+            const el = document.getElementById(campo.id);
+            if (!el) {
+                alert(`Erro: Campo "${campo.nome}" não encontrado (id="${campo.id}").`);
+                return;
+            }
+            valores[campo.id] = el.value;
+        }
+
+        const record = {
+            id: generateUUID(),
+            tipo: valores['input-tipo'],
+            categoria: valores['input-categoria'],
+            valor: parseFloat(valores['input-valor'].replace(',', '.')) || 0,
+            forma_pagamento: valores['input-forma'],
+            descricao: valores['input-descricao'],
+            vencimento: valores['input-vencimento'],
+            liquidacao: valores['input-liquidacao'],
+            status: valores['input-status'],
+            observacoes: valores['input-observacoes'],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+
+        const transaction = db.transaction(["records"], "readwrite");
+        const store = transaction.objectStore("records");
+        const request = store.add(record);
+
+        request.onsuccess = () => {
+            alert("Registro adicionado com sucesso!");
+            document.getElementById("modal").classList.add("hidden");
+            loadFinancialRecords?.();
+        };
+
+        request.onerror = (e) => {
+            alert("Erro ao adicionar registro: " + e.target.error);
+        };
+    } catch (error) {
+        alert("Erro ao salvar novo registro: " + error.message);
+    }
+}
+function loadFinancialRecords() {
+    const transaction = db.transaction(['records'], 'readonly');
+    const store = transaction.objectStore('records');
+    const tbody = document.getElementById('financialRecordsTable');
+    tbody.innerHTML = '';
+
+    const records = [];
+    let count = 0;
+    const maxRecords = 500;
+
+    store.openCursor(null, 'prev').onsuccess = function (event) {
+        const cursor = event.target.result;
+        if (cursor && count < maxRecords) {
+            records.push(cursor.value);
+            count++;
+            cursor.continue();
+        } else {
+            // Reverter ordem para exibir os mais recentes por último (opcional)
+            records.reverse();
+
+            records.forEach(record => {
+                const tipoBadge = record.tipo === 'entrada'
+                    ? `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Entrada</span>`
+                    : `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Saída</span>`;
+
+                let statusBadge = '';
+                switch (record.status) {
+                    case 'agendada':
+                        statusBadge = `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Agendada</span>`;
+                        break;
+                    case 'liquidada':
+                        statusBadge = `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Liquidada</span>`;
+                        break;
+                    case 'vencida':
+                        statusBadge = `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Vencida</span>`;
+                        break;
+                    case 'cancelada':
+                        statusBadge = `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">Cancelada</span>`;
+                        break;
+                    default:
+                        statusBadge = record.status;
+                }
+
+                const categoriaAmigavel = categoriaMap[record.categoria] || record.categoria || '';
+
+                const tr = document.createElement('tr');
+                tr.classList.add('hidden', 'md:table-row');
+                tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap">${tipoBadge}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${categoriaAmigavel}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${formatCurrency(record.valor)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${formatDate(record.vencimento)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${formatDate(record.liquidacao)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${formaPagamentoMap[record.forma_pagamento] || record.forma_pagamento || ''}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${statusBadge}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button class="text-yellow-500 hover:text-yellow-700 mr-3 text-lg edit-button" data-id="${record.id}" title="Editar">
+                            <i class="fas fa-pen-alt"></i>
+                        </button>
+                        <button class="text-emerald-500 hover:text-emerald-700 mr-3 text-lg" data-id="${record.id}" title="Marcar como pago">
+                            <i class="fas fa-check-circle"></i>
+                        </button>
+                        <button class="text-red-500 hover:text-red-700 text-lg" data-id="${record.id}" title="Excluir">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+    };
+}
+
+// 🔹 EDITAR REGISTRO
+function editRecord(id) {
+    const transaction = db.transaction(['records'], 'readonly');
+    const store = transaction.objectStore('records');
+    const request = store.get(id);
+
+    request.onsuccess = () => {
+        const record = request.result;
+        if (!record) return alert("Registro não encontrado.");
+
+        document.getElementById('edit-tipo').value = record.tipo || '';
+        document.getElementById('edit-categoria').value = record.categoria || '';
+        document.getElementById('edit-valor').value = record.valor || '';
+        document.getElementById('edit-forma').value = record.forma_pagamento || '';
+        document.getElementById('edit-descricao').value = record.descricao || '';
+        document.getElementById('edit-vencimento').value = record.vencimento || '';
+        document.getElementById('edit-liquidacao').value = record.liquidacao || '';
+        document.getElementById('edit-status').value = record.status || '';
+        document.getElementById('edit-observacoes').value = record.observacoes || '';
+
+        document.getElementById('saveEditRecord').dataset.recordId = id;
+        document.getElementById('editModal').classList.remove('hidden');
+    };
+
+    request.onerror = () => alert("Erro ao buscar o registro para edição.");
+}
+
+function saveEditRecord() {
+    const id = document.getElementById('saveEditRecord').dataset.recordId;
+    if (!id) return alert("ID do registro não encontrado.");
+
+    const updatedRecord = {
+        id,
+        tipo: document.getElementById('edit-tipo').value,
+        categoria: document.getElementById('edit-categoria').value,
+        valor: parseFloat(document.getElementById('edit-valor').value.replace(',', '.')) || 0,
+        forma_pagamento: document.getElementById('edit-forma').value,
+        descricao: document.getElementById('edit-descricao').value,
+        vencimento: document.getElementById('edit-vencimento').value,
+        liquidacao: document.getElementById('edit-liquidacao').value,
+        status: document.getElementById('edit-status').value,
+        observacoes: document.getElementById('edit-observacoes').value,
+        updatedAt: new Date().toISOString()
+    };
+
+    const transaction = db.transaction(['records'], 'readwrite');
+    const store = transaction.objectStore('records');
+    const request = store.put(updatedRecord);
+
+    request.onsuccess = () => {
+        alert("Registro atualizado com sucesso!");
+        document.getElementById('editModal').classList.add('hidden');
+        loadFinancialRecords();
+    };
+
+    request.onerror = () => alert("Erro ao atualizar o registro.");
+}
+
+// 🔹 MARCAR COMO PAGO
+function markAsPaid(id) {
+    const transaction = db.transaction(['records'], 'readwrite');
+    const store = transaction.objectStore('records');
+    const request = store.get(id);
+
+    request.onsuccess = () => {
+        const record = request.result;
+        if (!record) return alert("Registro não encontrado.");
+
+        record.status = 'liquidada';
+        record.updatedAt = new Date().toISOString();
+
+        const updateRequest = store.put(record);
+        updateRequest.onsuccess = () => {
+            alert("Registro marcado como pago.");
+            loadFinancialRecords();
+        };
+        updateRequest.onerror = () => alert("Erro ao atualizar o registro.");
+    };
+
+    request.onerror = () => alert("Erro ao buscar o registro.");
+}
+
+// 🔹 EXCLUIR REGISTRO
+function deleteRecord(id) {
+    if (!confirm("Tem certeza que deseja excluir este registro?")) return;
+
+    const transaction = db.transaction(['records'], 'readwrite');
+    const store = transaction.objectStore('records');
+    const deleteRequest = store.delete(id);
+
+    deleteRequest.onsuccess = () => {
+        alert("Registro excluído com sucesso.");
+        loadFinancialRecords();
+    };
+
+    deleteRequest.onerror = () => alert("Erro ao excluir o registro.");
+}
+
+// 🔹 EVENTOS DE BOTÕES E MODAIS
+let currentDate = new Date();
+
+function updateMonthDisplay() {
+    const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
+                       'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+    document.getElementById('currentMonth').textContent = 
+        `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+}
+
+function loadFinancialRecords() {
+    const transaction = db.transaction(['records'], 'readonly');
+    const store = transaction.objectStore('records');
+    const tbody = document.getElementById('financialRecordsTable');
+    tbody.innerHTML = '';
+
+    const records = [];
+    let count = 0;
+    const maxRecords = 500;
+    
+    // Filtro por mês
+    const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+
+    store.openCursor(null, 'prev').onsuccess = function (event) {
+        const cursor = event.target.result;
+        if (cursor && count < maxRecords) {
+            const record = cursor.value;
+            const recordDate = new Date(record.vencimento);
+            
+            if (recordDate >= startOfMonth && recordDate <= endOfMonth) {
+                records.push(record);
+            }
+            count++;
+            cursor.continue();
+        } else {
+            // Ordenar por data de vencimento
+            records.sort((a, b) => new Date(a.vencimento) - new Date(b.vencimento));
+            filterAndDisplayRecords(records);
+        }
+    };
+}
+
+function filterAndDisplayRecords(records) {
+    const filterType = document.getElementById('filterType').value;
+    const tbody = document.getElementById('financialRecordsTable');
+    const mobileDiv = document.getElementById('financialRecordsMobile');
+    
+    tbody.innerHTML = '';
+    mobileDiv.innerHTML = '';
+
+    let totalEntradas = 0;
+    let totalSaidas = 0;
+
+    const filteredRecords = filterType === 'todos' ? records : 
+                           records.filter(r => r.tipo === filterType);
+
+    filteredRecords.forEach(record => {
+        const tipoBadge = record.tipo === 'entrada'
+            ? `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Entrada</span>`
+            : `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Saída</span>`;
+
+        let statusBadge = '';
+        switch (record.status) {
+            case 'agendada':
+                statusBadge = `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Agendada</span>`;
+                break;
+            case 'liquidada':
+                statusBadge = `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Liquidada</span>`;
+                break;
+            case 'vencida':
+                statusBadge = `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Vencida</span>`;
+                break;
+            case 'cancelada':
+                statusBadge = `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">Cancelada</span>`;
+                break;
+        }
+
+        const categoriaAmigavel = categoriaMap[record.categoria] || record.categoria || '';
+
+        // Atualizar totais
+        if (record.tipo === 'entrada') {
+            totalEntradas += record.valor;
+        } else {
+            totalSaidas += record.valor;
+        }
+
+        // Desktop table
+        const tr = document.createElement('tr');
+        tr.classList.add('hidden', 'md:table-row');
+        tr.innerHTML = `
+            <td class="px-6 py-4 whitespace-nowrap">${formatDate(record.vencimento)}</td>
+            <td class="px-6 py-4 whitespace-nowrap">${tipoBadge}</td>
+            <td class="px-6 py-4 whitespace-nowrap">${categoriaAmigavel}</td>
+            <td class="px-6 py-4">${record.descricao || '-'}</td>
+            <td class="px-6 py-4 whitespace-nowrap">${formatCurrency(record.valor)}</td>
+            <td class="px-6 py-4 whitespace-nowrap">${statusBadge}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                <button class="text-yellow-500 hover:text-yellow-700 mr-3 text-lg edit-button" data-id="${record.id}" title="Editar">
+                    <i class="fas fa-pen-alt"></i>
+                </button>
+                <button class="text-red-500 hover:text-red-700 text-lg" data-id="${record.id}" title="Excluir">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+
+        // Mobile card
+        const mobileCard = document.createElement('div');
+        mobileCard.className = 'bg-white/10 backdrop-blur-sm rounded-lg p-4';
+        mobileCard.innerHTML = `
+            <div class="flex justify-between items-start mb-2">
+                <div>
+                    <p class="font-semibold">${record.descricao || '-'}</p>
+                    <p class="text-sm opacity-80">${categoriaAmigavel}</p>
+                </div>
+                <div>${tipoBadge}</div>
+            </div>
+            <div class="flex justify-between items-center">
+                <span class="text-lg font-bold">${formatCurrency(record.valor)}</span>
+                <span class="text-sm">${formatDate(record.vencimento)}</span>
+            </div>
+            <div class="flex justify-end mt-3 space-x-2">
+                <button class="text-yellow-500 hover:text-yellow-700 text-lg edit-button" data-id="${record.id}">
+                    <i class="fas fa-pen-alt"></i>
+                </button>
+                <button class="text-red-500 hover:text-red-700 text-lg" data-id="${record.id}">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+            </div>
+        `;
+        mobileDiv.appendChild(mobileCard);
+    });
+
+    // Atualizar resumo
+    document.getElementById('totalEntradas').textContent = formatCurrency(totalEntradas);
+    document.getElementById('totalSaidas').textContent = formatCurrency(totalSaidas);
+    document.getElementById('saldoMes').textContent = formatCurrency(totalEntradas - totalSaidas);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    initDB();
+    updateMonthDisplay();
+
+    // Navegação mensal
+    document.getElementById('prevMonth').addEventListener('click', () => {
+        currentDate.setMonth(currentDate.getMonth() - 1);
+        updateMonthDisplay();
+        loadFinancialRecords();
+    });
+
+    document.getElementById('nextMonth').addEventListener('click', () => {
+        currentDate.setMonth(currentDate.getMonth() + 1);
+        updateMonthDisplay();
+        loadFinancialRecords();
+    });
+
+    document.getElementById('filterType').addEventListener('change', loadFinancialRecords);
+
+    document.getElementById('openModal')?.addEventListener('click', () => {
+        document.getElementById('modal')?.classList.remove('hidden');
+    });
+
+    ['closeModal', 'cancelModal'].forEach(id => {
+        document.getElementById(id)?.addEventListener('click', () => {
+            document.getElementById('modal')?.classList.add('hidden');
+        });
+    });
+
+    document.getElementById('saveNewRecord')?.addEventListener('click', handleSaveNew);
+
+    document.getElementById('financialRecordsTable')?.addEventListener('click', (event) => {
+        const btn = event.target.closest('button');
+        if (!btn) return;
+        const id = btn.getAttribute('data-id');
+        if (!id) return;
+
+        if (btn.classList.contains('edit-button')) {
+            editRecord(id);
+        } else if (btn.title === 'Excluir') {
+            deleteRecord(id);
+        }
+    });
+
+    document.getElementById('financialRecordsMobile')?.addEventListener('click', (event) => {
+        const btn = event.target.closest('button');
+        if (!btn) return;
+        const id = btn.getAttribute('data-id');
+        if (!id) return;
+
+        if (btn.classList.contains('edit-button')) {
+            editRecord(id);
+        } else {
+            deleteRecord(id);
+        }
+    });
+
+    ['cancelEditModal', 'closeEditModal'].forEach(id => {
+        document.getElementById(id)?.addEventListener('click', () => {
+            document.getElementById('editModal')?.classList.add('hidden');
+        });
+    });
+
+    document.getElementById('saveEditRecord')?.addEventListener('click', saveEditRecord);
+});
+
+
+
+
+// 🔹 GERAR E INSERIR 10.000 REGISTROS ALEATÓRIOS
+function gerarRegistrosAleatorios(qtd = 10000) {
+    const categorias = Object.keys(categoriaMap);
+    const formasPagamento = Object.keys(formaPagamentoMap);
+    const statusList = ['agendada', 'liquidada'];
+    const tipos = ['entrada','entrada','entrada', 'saida','entrada', 'saida','entrada', 'saida', 'saida'];
+
+    function dataAleatoria() {
+        const start = new Date(2024, 9, 1).getTime(); // 01/01/2024
+        const end = new Date(2025, 12, 31).getTime(); // 31/12/2024
+        return new Date(start + Math.random() * (end - start)).toISOString().split('T')[0];
+    }
+
+    const transaction = db.transaction(["records"], "readwrite");
+    const store = transaction.objectStore("records");
+
+    for (let i = 0; i < qtd; i++) {
+        const tipo = tipos[Math.floor(Math.random() * tipos.length)];
+        const categoria = categorias[Math.floor(Math.random() * categorias.length)];
+        const valor = (Math.random() * 1000).toFixed(2);
+        const forma = formasPagamento[Math.floor(Math.random() * formasPagamento.length)];
+        const status = statusList[Math.floor(Math.random() * statusList.length)];
+        const vencimento = dataAleatoria();
+        const liquidacao = dataAleatoria();
+
+        const record = {
+            id: generateUUID(),
+            tipo,
+            categoria,
+            valor: parseFloat(valor),
+            forma_pagamento: forma,
+            descricao: `Registro aleatório #${i + 1}`,
+            vencimento,
+            liquidacao,
+            status,
+            observacoes: "Gerado automaticamente",
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+
+        store.add(record);
+    }
+
+    transaction.oncomplete = () => {
+        alert(`${qtd} registros gerados com sucesso!`);
+        loadFinancialRecords();
+    };
+
+    transaction.onerror = () => {
+        alert("Erro ao inserir registros aleatórios.");
+    };
+}
+document.getElementById("btnGerarRegistros").addEventListener("click", () => {
+    if (confirm("Deseja realmente gerar 10.000 registros aleatórios?")) {
+        gerarRegistrosAleatorios(100);
+    }
+});
+
+function corrigirCategoriasErradas() {
+    const dbRequest = indexedDB.open("financeDB", 1);
+
+    dbRequest.onsuccess = function(event) {
+        const db = event.target.result;
+        if (!db.objectStoreNames.contains("records")) return;
+
+        const transaction = db.transaction(["records"], "readwrite");
+        const store = transaction.objectStore("records");
+        const cursorRequest = store.openCursor();
+
+        // Mapas de categorias
+        const entradaCategorias = ["venda_a_prazo", "venda_a_vista", "outro_entrada"];
+        const saidaCategorias = ["pagamento_mercadoria","despesa_pessoal","despesa_marketing","despesa_operacional","imposto","outro_saida"];
+
+        cursorRequest.onsuccess = function(event) {
+            const cursor = event.target.result;
+            if (cursor) {
+                const record = cursor.value;
+
+                if (record.tipo === "entrada" && !entradaCategorias.includes(record.categoria)) {
+                    // Corrige categoria de entrada incorreta
+                    record.categoria = "venda_a_vista"; // padrão para entrada
+                    cursor.update(record);
+                    console.log(`Corrigido entrada: id ${record.id}, nova categoria: ${record.categoria}`);
+                }
+
+                if (record.tipo === "saida" && !saidaCategorias.includes(record.categoria)) {
+                    // Corrige categoria de saída incorreta
+                    record.categoria = "pagamento_mercadoria"; // padrão para saída
+                    cursor.update(record);
+                    console.log(`Corrigido saída: id ${record.id}, nova categoria: ${record.categoria}`);
+                }
+
+                cursor.continue();
+            } else {
+                console.log("Correção de categorias finalizada.");
+            }
+        };
+
+        cursorRequest.onerror = function(event) {
+            console.error("Erro ao percorrer registros:", event.target.error);
+        };
+    };
+
+    dbRequest.onerror = function(event) {
+        console.error("Erro ao abrir IndexedDB:", event.target.error);
+    };
+}
+
+// Para executar
+corrigirCategoriasErradas();
+
+// Função para ajustar data de liquidação
+function ajustarDataLiquidacao(cobranca) {
+  if (cobranca.liquidado) {
+    // Se já existir uma data de liquidação
+    if (cobranca.dataLiquidacao) {
+      // Converte para objeto Date
+      const dtLiqui = new Date(cobranca.dataLiquidacao);
+      const dtVenc = new Date(cobranca.vencimento);
+
+      // Se a data de liquidação for menor que o vencimento -> usar vencimento
+      if (dtLiqui < dtVenc) {
+        cobranca.dataLiquidacao = cobranca.vencimento;
+      }
+    } else {
+      // Se não tiver data de liquidação, assume a do vencimento
+      cobranca.dataLiquidacao = cobranca.vencimento;
+    }
+  }
+  return cobranca;
+}
+
+// Exemplo de uso em um array de cobranças
+rows = rows.map(c => ajustarDataLiquidacao(c));
+
+</script>
+<script>
+  // 🚨 Se não estiver logado, manda de volta para o index
+  if (localStorage.getItem("logado") !== "true") {
+    window.location.href = "index.html"; // ou login.html, dependendo do seu arquivo
+  }
+</script>
+      </div>
+   </body>
+</html>

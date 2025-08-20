@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Dashboard Empresarial</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="min-h-screen bg-gradient-to-br from-blue-900 to-blue-600 text-gray-100 flex items-center justify-center">
+
+  <div class="w-full max-w-md bg-blue-800 p-8 rounded-xl shadow-lg">
+    <h1 class="text-2xl font-bold text-center mb-6">Acesso Restrito</h1>
+    <form id="loginForm" class="space-y-6">
+      <div>
+        <label for="email" class="block text-sm font-medium">E-mail</label>
+        <input type="email" id="email" placeholder="seu@email.com"
+          class="w-full px-4 py-3 rounded-lg bg-blue-700 border border-blue-600 focus:border-blue-400 focus:outline-none transition">
+      </div>
+
+      <div>
+        <label for="senha" class="block text-sm font-medium">Senha</label>
+        <div class="relative">
+          <input type="password" id="senha" placeholder="Sua senha"
+            class="w-full px-4 py-3 pr-10 rounded-lg bg-blue-700 border border-blue-600 focus:border-blue-400 focus:outline-none transition">
+          <button type="button" onclick="togglePasswordVisibility()"
+            class="absolute inset-y-0 right-0 flex items-center pr-3 text-blue-300 hover:text-white">
+            <i id="passwordEyeIcon" class="fas fa-eye-slash"></i>
+          </button>
+        </div>
+      </div>
+
+      <button type="submit"
+        class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg font-semibold transition">
+        Entrar
+      </button>
+    </form>
+  </div>
+<script>
+  // 🚀 Verifica se já está logado
+  if (localStorage.getItem("logado") === "true") {
+    window.location.href = "dashboard.html";
+  }
+
+  function togglePasswordVisibility() {
+    const senha = document.getElementById("senha");
+    const icon = document.getElementById("passwordEyeIcon");
+    if (senha.type === "password") {
+      senha.type = "text";
+      icon.classList.replace("fa-eye-slash", "fa-eye");
+    } else {
+      senha.type = "password";
+      icon.classList.replace("fa-eye", "fa-eye-slash");
+    }
+  }
+
+  document.getElementById("loginForm").addEventListener("submit", async function (e) {
+    e.preventDefault();
+
+    const emailDigitado = document.getElementById("email").value.trim();
+    const senhaDigitada = document.getElementById("senha").value.trim();
+
+    if (!emailDigitado || !senhaDigitada) {
+      alert("Por favor, preencha e-mail e senha.");
+      return;
+    }
+
+    try {
+      // Busca o arquivo JSON com a lista de acessos
+      const response = await fetch("assets/securit.json");
+      const usuarios = await response.json();
+
+      // Verifica se encontra um usuário válido
+      const usuario = usuarios.find(u =>
+        u.email === emailDigitado && u.senha === senhaDigitada
+      );
+
+      if (!usuario) {
+        alert("E-mail ou senha incorretos!");
+        return;
+      }
+
+      // Verifica data de bloqueio
+      const hoje = new Date();
+      const dataBloqueio = new Date(usuario.data_bloqueio);
+      if (hoje > dataBloqueio) {
+        alert("Licença expirada! Entre em contato com o suporte.");
+        return;
+      }
+
+      // Se passou, salva no localStorage
+      localStorage.setItem("usuarioLogado", JSON.stringify(usuario));
+      localStorage.setItem("logado", "true"); // flag de login
+
+      alert("Login realizado com sucesso!");
+      window.location.href = "dashboard.html";
+
+    } catch (erro) {
+      console.error("Erro ao verificar acesso:", erro);
+      alert("Erro ao verificar licença!");
+    }
+  });
+</script>
+
+
+</body>
+</html>

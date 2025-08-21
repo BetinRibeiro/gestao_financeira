@@ -71,6 +71,30 @@
             </div>
          </div>
 
+         <!-- Mobile Totals -->
+         <div class="md:hidden grid grid-cols-2 gap-4 mb-6">
+            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+               <h4 class="text-sm font-semibold mb-1 text-green-400">Entradas Liquidadas</h4>
+               <p id="totalEntradasLiquidasMobile" class="text-xl font-bold">R$ 0,00</p>
+            </div>
+            <a href="registros_vencidos.html">
+                <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+                <h4 class="text-sm font-semibold mb-1 text-green-400">Entradas Pendentes</h4>
+                <p id="totalEntradasPendentesMobile" class="text-xl font-bold">R$ 0,00</p>
+                </div>
+            </a>
+            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+               <h4 class="text-sm font-semibold mb-1 text-red-400">Saídas Liquidadas</h4>
+               <p id="totalSaidasLiquidasMobile" class="text-xl font-bold">R$ 0,00</p>
+            </div>
+            <a href="registros_vencidos.html">
+                <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+                <h4 class="text-sm font-semibold mb-1 text-red-400">Saídas Pendentes</h4>
+                <p id="totalSaidasPendentesMobile" class="text-xl font-bold">R$ 0,00</p>
+                </div>
+            </a>
+         </div>
+
          <!-- Results Section -->
          <div class="lg:overflow-x-auto">
             <table class="w-full bg-white/10 backdrop-blur-sm rounded-xl overflow-hidden hidden md:table">
@@ -88,6 +112,23 @@
                <tbody id="financialRecordsTable" class="divide-y divide-white/10">
                   <!-- Records will be populated by JS -->
                </tbody>
+               <tfoot id="tableFooter" class="border-t border-white/20 bg-white/5">
+                  <tr class="font-bold text-sm">
+                     <td colspan="4" class="px-6 py-4">Totais do Mês</td>
+                     <td colspan="3" class="px-6 py-4">
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                           <div class="text-green-400">
+                              <div>Entradas Liquidadas: <span id="totalEntradasLiquidadas">R$ 0,00</span></div>
+                              <a href="registros_vencidos.html"><div>Entradas Pendentes: <span id="totalEntradasPendentes">R$ 0,00</span></div></a>
+                           </div>
+                           <div class="text-red-400">
+                              <div>Saídas Liquidadas: <span id="totalSaidasLiquidadas">R$ 0,00</span></div>
+                              <a href="registros_vencidos.html"><div>Saídas Pendentes: <span id="totalSaidasPendentes">R$ 0,00</span></div></a>
+                           </div>
+                        </div>
+                     </td>
+                  </tr>
+               </tfoot>
             </table>
             <!-- Mobile Version -->
             <div id="financialRecordsMobile" class="md:hidden space-y-4">
@@ -614,6 +655,10 @@ function filterAndDisplayRecords(records) {
 
     let totalEntradas = 0;
     let totalSaidas = 0;
+    let totalEntradasLiquidadas = 0;
+    let totalEntradasPendentes = 0;
+    let totalSaidasLiquidadas = 0;
+    let totalSaidasPendentes = 0;
 
     const filteredRecords = filterType === 'todos' ? records : 
                            records.filter(r => r.tipo === filterType);
@@ -644,8 +689,18 @@ function filterAndDisplayRecords(records) {
         // Atualizar totais
         if (record.tipo === 'entrada') {
             totalEntradas += record.valor;
+            if (record.status === 'liquidada') {
+                totalEntradasLiquidadas += record.valor;
+            } else if (record.status === 'agendada' || record.status === 'vencida') {
+                totalEntradasPendentes += record.valor;
+            }
         } else {
             totalSaidas += record.valor;
+            if (record.status === 'liquidada') {
+                totalSaidasLiquidadas += record.valor;
+            } else if (record.status === 'agendada' || record.status === 'vencida') {
+                totalSaidasPendentes += record.valor;
+            }
         }
 
         // Desktop table
@@ -684,6 +739,7 @@ function filterAndDisplayRecords(records) {
                 <span class="text-lg font-bold">${formatCurrency(record.valor)}</span>
                 <span class="text-sm">${formatDate(record.vencimento)}</span>
             </div>
+            <div class="mt-2">${statusBadge}</div>
             <div class="flex justify-end mt-3 space-x-2">
                 <button class="text-yellow-500 hover:text-yellow-700 text-lg edit-button" data-id="${record.id}">
                     <i class="fas fa-pen-alt"></i>
@@ -700,6 +756,18 @@ function filterAndDisplayRecords(records) {
     document.getElementById('totalEntradas').textContent = formatCurrency(totalEntradas);
     document.getElementById('totalSaidas').textContent = formatCurrency(totalSaidas);
     document.getElementById('saldoMes').textContent = formatCurrency(totalEntradas - totalSaidas);
+    
+    // Atualizar totais por status (desktop)
+    document.getElementById('totalEntradasLiquidadas').textContent = formatCurrency(totalEntradasLiquidadas);
+    document.getElementById('totalEntradasPendentes').textContent = formatCurrency(totalEntradasPendentes);
+    document.getElementById('totalSaidasLiquidadas').textContent = formatCurrency(totalSaidasLiquidadas);
+    document.getElementById('totalSaidasPendentes').textContent = formatCurrency(totalSaidasPendentes);
+
+    // Atualizar totais por status (mobile)
+    document.getElementById('totalEntradasLiquidasMobile').textContent = formatCurrency(totalEntradasLiquidadas);
+    document.getElementById('totalEntradasPendentesMobile').textContent = formatCurrency(totalEntradasPendentes);
+    document.getElementById('totalSaidasLiquidasMobile').textContent = formatCurrency(totalSaidasLiquidadas);
+    document.getElementById('totalSaidasPendentesMobile').textContent = formatCurrency(totalSaidasPendentes);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
